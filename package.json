@@ -1,0 +1,17 @@
+{
+  "name": "com.acciaio.rebar4u",
+  "version": "1.0.0",
+  "displayName": "Rebar for Unity",
+  "description": "An extension of the Rebar library to use in Unity",
+  "unity": "2020.1",
+  "unityRelease": "0f1",
+  "keywords": [
+    "Rebar"
+  ],
+  "author": {
+    "name": "Alberto Bambini",
+    "email": "abambini95@gmail.com",
+    "url": "https://www.unity.com"
+  },
+  "type": "library"
+}
