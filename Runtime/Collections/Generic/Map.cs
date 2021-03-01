@@ -6,6 +6,14 @@ using System.Linq;
 
 namespace Rebar.Unity.Collections.Generic
 {
+    /// <summary>
+    /// Serializable, generic Dictionary implementation. No more boilerplate code 
+    /// for when you need to serialize a list of key-value pairs. It's called Map to
+    /// better highlight it's serializable, but it's implemented as a Dictionary which 
+    /// is retrievable by calling AsDictionary(). 
+    /// </summary>
+    /// <typeparam name="TKey"></typeparam>
+    /// <typeparam name="TValue"></typeparam>
     [Serializable]
     public class Map<TKey, TValue> : IDictionary, ISerializationCallbackReceiver, IDictionary<TKey, TValue>
     {
@@ -82,6 +90,8 @@ namespace Rebar.Unity.Collections.Generic
 
         public Map(int capacity, IEqualityComparer<TKey> comparer) => 
                 _internal = new Dictionary<TKey, TValue>(capacity, comparer);
+
+        public Dictionary<TKey, TValue> AsDictionary() => _internal;
 
         public void OnAfterDeserialize()
         {

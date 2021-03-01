@@ -5,6 +5,10 @@ using UnityEngine;
 
 namespace Rebar.Unity.Automata
 {
+    /// <summary>
+    /// Base abstract class for implementing StaeAutomaton states which live inside a scene as GameObjects.
+    /// This might be useful to give them some game loop-related capabilities in a easier way.
+    /// </summary>
     public abstract class UnityState : MonoBehaviour, IState
     {
         public virtual string Name => gameObject.name;

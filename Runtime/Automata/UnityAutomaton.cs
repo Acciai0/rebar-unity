@@ -7,6 +7,9 @@ using UnityEngine.Events;
 
 namespace Rebar.Unity.Automata
 {
+    /// <summary>
+    /// Unity Behaviour that wraps a Rebar.Automata.StateAutomaton.
+    /// </summary>
     public class UnityAutomaton : MonoBehaviour
     {
         public enum TickTime
