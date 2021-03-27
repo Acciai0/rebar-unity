@@ -110,6 +110,7 @@ namespace Rebar.Unity.Collections.Generic
 
         public void OnBeforeSerialize()
         {
+            if (_serializedEntries == null) _serializedEntries = new List<Entry>();
             _serializedEntries = _internal.Select(kvp => new Entry(kvp))
                     .Concat(_serializedEntries)
                     .ToList();
