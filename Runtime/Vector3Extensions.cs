@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace Rebar
+namespace Rebar.Unity
 {
     public static class Vector3Extensions
     {
@@ -83,5 +83,20 @@ namespace Rebar
         /// Sizzling operator. Give the Vector (x, y, z), it returns (z, y, x)
         /// </summary>
         public static Vector3 zyx(this Vector3 vector) => new Vector3(vector.z, vector.y, vector.x);
+
+        /// <summary>
+        /// Given the Vector (x, y, z) and a value x', it returns (x', y, z)
+        /// </summary>
+        public static Vector3 WithX(this Vector3 vector, float x) => new Vector3(x, vector.y, vector.z);
+
+        /// <summary>
+        /// Given the Vector (x, y, z) and a value y', it returns (x, y', z)
+        /// </summary>
+        public static Vector3 WithY(this Vector3 vector, float y) => new Vector3(vector.x, y, vector.z);
+
+        /// <summary>
+        /// Given the Vector (x, y, z) and a value z', it returns (x, y, z')
+        /// </summary>
+        public static Vector3 WithZ(this Vector3 vector, float z) => new Vector3(vector.x, vector.y, z);
     }
 }

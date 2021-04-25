@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace Rebar
+namespace Rebar.Unity
 {
     public static class Vector2Extensions
     {
@@ -38,5 +38,15 @@ namespace Rebar
         /// Sizzling operator. Give the Vector (x, y), it returns (y, y, y)
         /// </summary>
         public static Vector3 yyy(this Vector2 vector) => new Vector3(vector.y, vector.y, vector.y);
+
+        /// <summary>
+        /// Given the Vector (x, y) and a value x', it returns (x', y)
+        /// </summary>
+        public static Vector2 WithX(this Vector2 vector, float x) => new Vector2(x, vector.y);
+
+        /// <summary>
+        /// Given the Vector (x, y) and a value y', it returns (x, y')
+        /// </summary>
+        public static Vector2 WithY(this Vector2 vector, float y) => new Vector2(vector.x, y);
     }
 }

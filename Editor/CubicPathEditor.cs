@@ -136,14 +136,17 @@ namespace Rebar.Unity.Editor
             {
                 var passPoint = GetPassPointAt(i);
 
+                Handles.color = Color.green;
                 float size = HandleUtility.GetHandleSize(passPoint.L) * HANDLE_SIZE_FACTOR;
                 Vector3 newPoint = Handles.FreeMoveHandle(passPoint.L, _path.transform.rotation, size, step, Handles.SphereHandleCap);
                 if (newPoint != passPoint.L) _path.ChangeLeftInterpolantOf(i, newPoint);
 
+                Handles.color = Color.red;
                 size = HandleUtility.GetHandleSize(passPoint.R) * HANDLE_SIZE_FACTOR;
                 newPoint = Handles.FreeMoveHandle(passPoint.R, _path.transform.rotation, size, step, Handles.SphereHandleCap);
                 if (newPoint != passPoint.R) _path.ChangeRightInterpolantOf(i, newPoint);
 
+                Handles.color = Color.white;
                 size = HandleUtility.GetHandleSize(passPoint.P) * HANDLE_SIZE_FACTOR;
                 newPoint = Handles.FreeMoveHandle(passPoint.P, _path.transform.rotation, size, step, Handles.SphereHandleCap);
                 if (newPoint != passPoint.P) _path.ChangePointAt(i, newPoint);
@@ -155,28 +158,44 @@ namespace Rebar.Unity.Editor
         {
             if (_path.Count == 0) return;
             int subs = _state.GetProperty<int>(SUBS_KEY);
-            Handles.color = Color.white;
-            Vector3 lineStart = _path.Evaluate(0);
+
+            Vector3 lineStart = Vector3.zero;
+            Vector3[] normals = _path.GetNormalsForSubdivision(subs);
             for (int i = 0; i <= subs; i++) {
-                Vector3 lineEnd = _path.Evaluate(i / (float)subs);
-                Handles.DrawLine(lineStart, lineEnd);
+                float t = i / (float)subs;
+                Vector3 lineEnd = _path.Evaluate(t);
+
+                if (i != subs)
+                {
+                    Vector3 direction = _path.GetDirectionAt(t);
+                    Handles.color = Color.blue;
+                    Handles.DrawLine(lineEnd, lineEnd + normals[i] * .05f - direction * .05f);
+                    Handles.DrawLine(lineEnd, lineEnd - normals[i] * .05f - direction * .05f);
+                }
+
+                if (i != 0)
+                {
+                    Handles.color = Color.white;
+                    Handles.DrawLine(lineStart, lineEnd, 2);
+                }
                 lineStart = lineEnd;
             }
+
             for (int i = 0; i < _points.arraySize && _state.GetProperty<bool>(SHOW_HANDLES_KEY); i++) 
             {
                 var passPoint = GetPassPointAt(i);
                 Handles.color = Color.red;
-                Handles.DrawLine(passPoint.P, passPoint.L);
+                Handles.DrawLine(passPoint.P, passPoint.R, 2);
                 Handles.color = Color.green;
-                Handles.DrawLine(passPoint.P, passPoint.R);
+                Handles.DrawLine(passPoint.P, passPoint.L, 2);
             }
         }
 
         private void OnSceneGUI () 
-        {
+        {            
+            DrawCurve();
             if (_state.GetProperty<bool>(SHOW_HANDLES_KEY)) 
                 HandleInputs();
-            DrawCurve();
         }
 
         private void DrawEditorParameters()
@@ -218,7 +237,9 @@ namespace Rebar.Unity.Editor
             EditorGUILayout.Space();
 
             serializedObject.Update();
-            _path.Loop = EditorGUILayout.Toggle("Loop Curve", _path.Loop);
+            bool loop = EditorGUILayout.Toggle("Loop Curve", _path.Loop);
+
+            if (loop != _path.Loop) _path.Loop = loop;
 
             bool foldout = _state.GetProperty<bool>(POINTS_COLLAPSED_KEY);
             bool newFoldout = EditorGUILayout.Foldout(foldout, "Points");

@@ -5,8 +5,10 @@ using UnityEngine;
 
 namespace Rebar.Unity
 {
-    public class CubicPath : MonoBehaviour, IEnumerable<Vector3>
+    public class CubicPath : MonoBehaviour, IEnumerable<Vector3>, IProfile
     {
+        public event System.Action<CubicPath> OnChange;
+
         [System.Serializable]
         private struct PassPoint 
         {
@@ -105,6 +107,15 @@ namespace Rebar.Unity
             }
         }
 
+        private struct VectorFrame
+        {
+            public Vector3 Point;
+            public Vector3 Tangent;
+            public Vector3 Reference;
+
+            public Vector3 Normal => Vector3.Cross(Tangent, Reference).normalized;
+        }
+
         public enum JointContinuity : byte { C0, C1, C2 }
 
         [SerializeField]
@@ -121,7 +132,11 @@ namespace Rebar.Unity
         public bool Loop 
         {
             get => _loop;
-            set => _loop = value;
+            set 
+            {
+                _loop = value;
+                OnChange?.Invoke(this);
+            }
         }
 
         private void IndexCheckOrException(int index)
@@ -145,10 +160,30 @@ namespace Rebar.Unity
             return (startIndex, endIndex, t);
         }
 
+        private VectorFrame GetVectorFrameAt(float t, Space coordinatesSystem)
+        {
+            Vector3 tangent = GetDirectionAt(t, Space.Self);
+            Vector3 reference = new Vector3(-tangent.y, tangent.x, tangent.z);
+
+            if (coordinatesSystem == Space.World)
+            {
+                tangent = transform.TransformDirection(tangent);
+                reference = transform.TransformDirection(reference);
+            }
+
+            return new VectorFrame 
+            {
+                Point = Evaluate(t),
+                Tangent = tangent,
+                Reference = reference
+            };
+        }
+
         public void Setup(CubicPath path)
         {
             _points = path._points.ToList();
             _loop = path._loop;
+            OnChange?.Invoke(this);
         }
 
         public void Setup(IEnumerable<Vector3> passPoints, JointContinuity continuityAtPoints, bool loop, Space coordinatesSystem = Space.World)
@@ -156,6 +191,7 @@ namespace Rebar.Unity
             if (coordinatesSystem == Space.World) passPoints = passPoints.Select(p => transform.InverseTransformPoint(p));
             _points = passPoints.Select(p => new PassPoint(p, continuityAtPoints)).ToList();
             _loop = loop;
+            OnChange?.Invoke(this);
         }
 
         public void Setup(IEnumerable<Vector3> passPoints, IEnumerable<JointContinuity> continuities, bool loop, Space coordinatesSystem = Space.World)
@@ -163,15 +199,21 @@ namespace Rebar.Unity
             if (coordinatesSystem == Space.World) passPoints = passPoints.Select(p => transform.InverseTransformPoint(p));
             _points = passPoints.Zip(continuities, (v, c) => new PassPoint(v, c)).ToList();
             _loop = loop;
+            OnChange?.Invoke(this);
         }
 
-        public void Clear() => _points.Clear();
+        public void Clear() 
+        {
+            _points.Clear();
+            OnChange?.Invoke(this);
+        }
 
         public void AddPassPoint(Vector3 value, Space coordinatesSystem = Space.World) 
         {
             if (coordinatesSystem == Space.World) value = transform.InverseTransformPoint(value);
 
             _points.Add(new PassPoint(value, JointContinuity.C1));
+            OnChange?.Invoke(this);
         }
         
         public void ChangePointAt(int index, Vector3 value, Space coordinatesSystem = Space.World) 
@@ -181,6 +223,7 @@ namespace Rebar.Unity
             if (coordinatesSystem == Space.World) value = transform.InverseTransformPoint(value);
 
             _points[index] = _points[index].WithValue(value);
+            OnChange?.Invoke(this);
         }
 
         public Vector3 GetPointAt(int index, Space coordinatesSystem = Space.World) 
@@ -205,6 +248,7 @@ namespace Rebar.Unity
                 throw new System.InvalidCastException($"Invalid continuity value {continuity}");
             for(int i = 0; i < _points.Count; i++)
                 _points[i] = _points[i].WithContinuity(continuity);
+            OnChange?.Invoke(this);
         }
 
         public void ChangeContinuityOfPointAt(int index, JointContinuity continuity) 
@@ -214,6 +258,7 @@ namespace Rebar.Unity
                 throw new System.InvalidCastException($"Invalid continuity value {continuity}");
 
             _points[index] = _points[index].WithContinuity(continuity);
+            OnChange?.Invoke(this);
         }
 
         public Vector3 GetLeftInterpolantOf(int index, Space coordinatesSystem = Space.World)
@@ -233,6 +278,7 @@ namespace Rebar.Unity
             if (coordinatesSystem == Space.World) value = transform.InverseTransformPoint(value);
 
             _points[index] = _points[index].WithLeftInterpolant(value);
+            OnChange?.Invoke(this);
         }
 
         public Vector3 GetRightInterpolantOf(int index, Space coordinatesSystem = Space.World)
@@ -252,9 +298,14 @@ namespace Rebar.Unity
             if (coordinatesSystem == Space.World) value = transform.InverseTransformPoint(value);
 
             _points[index] = _points[index].WithRightInterpolant(value);
+            OnChange?.Invoke(this);
         }
 
-        public void RemovePointAt(int index) => _points.RemoveAt(index);
+        public void RemovePointAt(int index) 
+        {
+            _points.RemoveAt(index);
+            OnChange?.Invoke(this);
+        }
 
         public Vector3 Evaluate(float t, Space coordinatesSystem = Space.World)
         {
@@ -296,6 +347,35 @@ namespace Rebar.Unity
 
         public Vector3 GetDirectionAt(float t, Space coordinatesSystem = Space.World) => 
             GetVelocityAt(t, coordinatesSystem).normalized;
+
+        public Vector3[] GetNormalsForSubdivision(int steps, Space coordinatesSystem = Space.World)
+        {
+            List<VectorFrame> frames = new List<VectorFrame>(steps);
+            float step = 1 / (float)steps;
+            frames.Add(GetVectorFrameAt(0, coordinatesSystem));
+
+            for(float t0 = 0; t0 < 1; t0 += step)
+            {
+                VectorFrame x0 = frames.Last();
+                float t1 = t0 + step;
+                VectorFrame x1 = GetVectorFrameAt(t1, coordinatesSystem);
+
+                Vector3 segment1 = x1.Point - x0.Point;
+                float distance1 = segment1.magnitude;
+
+                Vector3 riL = x0.Reference - 2 / distance1 * Vector3.Dot(segment1, x0.Reference) * segment1;
+                Vector3 tiL = x0.Tangent - 2 / distance1 * Vector3.Dot(segment1, x0.Tangent) * segment1;
+
+                Vector3 segment2 = x1.Tangent - tiL;
+                float distance2 = segment2.magnitude;
+
+                x1.Reference = riL - 2 / distance2 * Vector3.Dot(segment2, riL) * segment2;
+
+                frames.Add(x1);
+            }
+
+            return frames.Select(f => f.Normal).ToArray();
+        }
 
         public IEnumerator<Vector3> GetEnumerator() => 
             _points.Select(p => transform.TransformPoint(p.Point)).GetEnumerator();
